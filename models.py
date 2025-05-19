@@ -40,6 +40,14 @@ class User:
     def check_password(self, password):
         return check_password(password, self.password_hash)
 
+    @staticmethod
+    def update_password(srn, new_password):
+        password_hash = hash_password(new_password)
+        query = "UPDATE users SET password_hash = %s WHERE srn = %s"
+        params = (password_hash, srn)
+        result = execute_query(query, params, commit=True)
+        return result is not None
+
 class Course:
     def __init__(self, course_id, course_name, course_code, credits, department_offering, picture=None):
         self.course_id = course_id

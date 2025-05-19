@@ -30,12 +30,15 @@ class CourseRegistrationApp(tk.Tk):
 
     def login(self, srn_or_email, password):
         # Reload user from database to ensure fresh data
+        print(f"Login called with srn_or_email: '{srn_or_email}' and password: '{password}'")
         user = User.get_user_by_srn(srn_or_email)
         if not user:
             user = User.get_user_by_email(srn_or_email)
         if user:
             print(f"Login attempt for user: {user.srn}, email: {user.email}")
             print(f"Stored password hash: {user.password_hash}")
+        else:
+            print("No user found with given SRN or email.")
         if user and user.check_password(password):
             self.current_user = user
             if user.is_admin:
@@ -45,6 +48,7 @@ class CourseRegistrationApp(tk.Tk):
                 self.frames[UserPortal].refresh()
                 self.show_frame(UserPortal)
         else:
+            print("Password check failed or user not found.")
             messagebox.showerror("Login Failed", "Incorrect username/SRN or password.")
 
     def signup(self, srn, name, email, enrollment_year, department, password):

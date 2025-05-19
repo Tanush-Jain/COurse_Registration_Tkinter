@@ -1,6 +1,9 @@
 import mysql.connector
 from mysql.connector import errorcode
 import bcrypt
+import sys
+from models import User
+from database import get_connection
 
 # Database configuration
 DB_CONFIG = {
@@ -82,21 +85,80 @@ def create_tables(cursor):
 
 def create_super_admin(cursor):
     # Check if super admin exists
-    cursor.execute("SELECT * FROM users WHERE srn = %s", ('SUPERADMIN',))
+    cursor.execute("SELECT * FROM users WHERE srn = %s", ('SHR',))
     if cursor.fetchone():
         print("Super admin user already exists.")
         return
 
-    password = "SuperAdminPassword123!"  # Change this password as needed
+    password = "Shrey123!@#"  # Changed to user requested password
     password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
 
     add_user = ("INSERT INTO users "
                 "(srn, name, email, enrollment_year, department, password_hash, is_admin) "
                 "VALUES (%s, %s, %s, %s, %s, %s, %s)")
-    user_data = ('SUPERADMIN', 'Super Admin', 'superadmin@example.com', 2024, 'Administration', password_hash.decode('utf-8'), True)
+    user_data = ('SHR', 'Super Admin', 'superadmin@example.com', 2024, 'Administration', password_hash.decode('utf-8'), True)
 
     cursor.execute(add_user, user_data)
-    print("Super admin user created with SRN 'SUPERADMIN' and password 'SuperAdminPassword123!'")
+    print("Super admin user created with SRN 'SHR' and password 'Shrey123!@#'")
+
+def reset_admin_password(new_password):
+    cnx = get_connection()
+    if cnx is None:
+        print("Failed to connect to database.")
+        return
+    cursor = cnx.cursor()
+    cursor.execute("SELECT * FROM users WHERE srn = %s", ('SUPERADMIN',))
+    if cursor.fetchone():
+        # Update password
+        success = User.update_password('SUPERADMIN', new_password)
+        if success:
+            print(f"Admin password updated to: {new_password}")
+        else:
+            print("Failed to update admin password.")
+    else:
+        # Create admin user
+        password_hash = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt())
+        add_user = ("INSERT INTO users "
+                    "(srn, name, email, enrollment_year, department, password_hash, is_admin) "
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s)")
+        user_data = ('SUPERADMIN', 'Super Admin', 'superadmin@example.com', 2024, 'Administration', password_hash.decode('utf-8'), True)
+        cursor.execute(add_user, user_data)
+        cnx.commit()
+        print(f"Admin user created with password: {new_password}")
+    cursor.close()
+    cnx.close()
+
+def main():
+    import mysql.connector
+    from mysql.connector import errorcode
+
+    try:
+        cnx = mysql.connector.connect(
+            user=DB_CONFIG['user'],
+            password=DB_CONFIG['password'],
+            unix_socket=DB_CONFIG['unix_socket']
+        )
+        cursor = cnx.cursor()
+        create_database(cursor)
+        cnx.database = 'course_registration'
+        create_tables(cursor)
+        create_super_admin(cursor)
+        cnx.commit()
+        cursor.close()
+        cnx.close()
+        print("Database setup completed successfully.")
+    except mysql.connector.Error as err:
+        print(err)
+
+if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] == "--reset-admin-password":
+        if len(sys.argv) < 3:
+            print("Usage: python setup_db.py --reset-admin-password <new_password>")
+        else:
+            new_password = sys.argv[2]
+            reset_admin_password(new_password)
+    else:
+        main()
 
 def main():
     try:
